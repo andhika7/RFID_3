@@ -19,10 +19,17 @@ void app_main(void) {
 
     } else {
         printf("RC522 Init Gagal\n");
-        while (1) vTaskDelay(pdMS_TO_TICKS(1000));
+        // while (1) vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
+    uint8_t atqa[2]; //ATQA
+
     while (1) {
+        if (rc522_request(atqa)) {
+            printf("Kartu Terdeteksi! ATQA: %02X %02X\n", atqa[0], atqa[1]);
+        } else {
+            printf("Tidak ada kartu.\n");
+        }        
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }

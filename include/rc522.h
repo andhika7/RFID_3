@@ -15,6 +15,7 @@
 #define BitFramingReg   0x0D
 #define CommIrqReg      0x04
 #define ErrorReg        0x06
+
 #define TModeReg        0x2A
 #define TPrescalerReg   0x2B
 #define TReloadRegL     0x2D
@@ -36,3 +37,6 @@ uint8_t rc522_read_reg(uint8_t reg);
 void rc522_write_reg(uint8_t reg, uint8_t val);
 
 void rc522_antenna_on(); //enable antena
+
+bool rc522_request(uint8_t *atqa); // REQA dan ATQA
+

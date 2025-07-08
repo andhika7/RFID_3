@@ -65,6 +65,17 @@ esp_err_t rc522_init(spi_host_device_t spi_host) {
     rc522_write_reg(CommandReg, PCD_RESETPHASE);
     vTaskDelay(pdMS_TO_TICKS(50));
 
+    // Init recommended by datasheet
+    rc522_write_reg(TModeReg, 0x8D);
+    rc522_write_reg(TPrescalerReg, 0x3E);
+    rc522_write_reg(TReloadRegL, 30);
+    rc522_write_reg(TReloadRegH, 0);
+
+    rc522_write_reg(TxASKReg, 0x40);
+    rc522_write_reg(ModeReg, 0x3D);
+
+    rc522_antenna_on();
+
     // Check version
     uint8_t version = rc522_read_reg(VersionReg);
     printf("RC522 VersionReg: 0x%02X\n", version); // mencetak versi firmware MFRC522 (0x92:versi 2.0)
@@ -80,3 +91,43 @@ void rc522_antenna_on() {
     }
 }
 
+// kirim REQA (0x26) dan membaca ATQA (2-byte)
+bool rc522_request(uint8_t *atqa) {
+    // Clear all IRQs
+    rc522_write_reg(CommIrqReg, 0x7F);
+
+    // Flush FIFO
+    rc522_write_reg(FIFOLevelReg, 0x80);
+
+    // Set BitFramingReg to 7 bits
+    rc522_write_reg(BitFramingReg, 0x07);
+
+    // Write REQA
+    rc522_write_reg(FIFODataReg, 0x26);
+
+    // Start Transceive
+    rc522_write_reg(CommandReg, PCD_TRANSCEIVE);
+
+    // StartSend bit high (BitFramingReg bit 7)
+    rc522_write_reg(BitFramingReg, 0x87);
+
+    // Wait for the RxIRq bit (bit 4)
+    int i = 0;
+    uint8_t irq;
+    do {
+        irq = rc522_read_reg(CommIrqReg);
+        i++;
+    } while (!(irq & 0x30) && i < 200);
+
+    uint8_t error = rc522_read_reg(ErrorReg);
+    uint8_t fifo_level = rc522_read_reg(FIFOLevelReg);
+
+    printf("REQA -> IRQ: 0x%02X, ERR: 0x%02X, FIFO: %d\n", irq, error, fifo_level);
+
+    if ((irq & 0x30) && !(error & 0x1B) && fifo_level >= 2) {
+        atqa[0] = rc522_read_reg(FIFODataReg);
+        atqa[1] = rc522_read_reg(FIFODataReg);
+        return true;
+    }
+    return false;
+}
