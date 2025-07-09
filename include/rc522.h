@@ -39,4 +39,6 @@ void rc522_write_reg(uint8_t reg, uint8_t val);
 void rc522_antenna_on(); //enable antena
 
 bool rc522_request(uint8_t *atqa); // REQA dan ATQA
+bool rc522_anticoll(uint8_t *uid);
+
 

@@ -23,10 +23,20 @@ void app_main(void) {
     }
 
     uint8_t atqa[2]; //ATQA
+    uint8_t uid[5];
 
     while (1) {
         if (rc522_request(atqa)) {
             printf("Kartu Terdeteksi! ATQA: %02X %02X\n", atqa[0], atqa[1]);
+            if (rc522_anticoll(uid)){
+                printf("UID: ");
+                for (int i = 0; i < 4; i++){
+                    printf("%02x ", uid[i]);
+                }
+                printf("\n");
+            } else {
+                printf("gagal membaca UID\n");
+            }
         } else {
             printf("Tidak ada kartu.\n");
         }        
