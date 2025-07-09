@@ -168,3 +168,93 @@ bool rc522_anticoll(uint8_t *uid) {
     }
     return false;
 }
+
+// CRC Calculation
+uint8_t rc522_calculate_crc(uint8_t *data, uint8_t length, uint8_t *result) {
+    rc522_write_reg(CommandReg, PCD_IDLE);
+    rc522_write_reg(DivIrqReg, 0x04); // Clear CRCIRq
+
+    rc522_write_reg(FIFOLevelReg, 0x80); // Flush FIFO
+
+    for (uint8_t i = 0; i < length; i++) {
+        rc522_write_reg(FIFODataReg, data[i]);
+    }
+
+    rc522_write_reg(CommandReg, PCD_CALCCRC);
+
+    uint8_t i = 0xFF;
+    uint8_t n;
+    do {
+        n = rc522_read_reg(DivIrqReg);
+        i--;
+    } while ((i != 0) && !(n & 0x04)); // CRCIRq
+
+    result[0] = rc522_read_reg(CRCResultRegL);
+    result[1] = rc522_read_reg(CRCResultRegM);
+
+    return Status_OK;
+}
+
+// otentikasi dan read block
+esp_err_t rc522_auth(uint8_t auth_mode, uint8_t block_addr, uint8_t *key, uint8_t *uid) {
+    uint8_t buff[12];
+
+    buff[0] = auth_mode;
+    buff[1] = block_addr;
+    for (uint8_t i = 0; i < 6; i++) buff[i + 2] = key[i];
+    for (uint8_t i = 0; i < 4; i++) buff[i + 8] = uid[i];
+
+    rc522_write_reg(BitFramingReg, 0x00);
+
+    for (uint8_t i = 0; i < 12; i++) {
+        rc522_write_reg(FIFODataReg, buff[i]);
+    }
+
+    rc522_write_reg(CommandReg, PCD_AUTHENT);
+
+    uint8_t i = 200;
+    uint8_t n;
+    do {
+        n = rc522_read_reg(Status2Reg);
+        i--;
+    } while ((i != 0) && !(n & 0x08)); // MFCrypto1On
+
+    n = rc522_read_reg(Status2Reg);
+    if (n & 0x08) return Status_OK;
+
+    return Status_ERROR;
+}
+
+esp_err_t rc522_read_block(uint8_t block_addr, uint8_t *recv_data) {
+    uint8_t buff[4];
+
+    buff[0] = PICC_READ;
+    buff[1] = block_addr;
+    rc522_calculate_crc(buff, 2, &buff[2]);
+
+    rc522_write_reg(BitFramingReg, 0x00);
+
+    for (uint8_t i = 0; i < 4; i++) {
+        rc522_write_reg(FIFODataReg, buff[i]);
+    }
+    rc522_write_reg(CommandReg, PCD_TRANSCEIVE);
+    rc522_write_reg(BitFramingReg, 0x87);
+
+    uint8_t i = 200;
+    uint8_t n;
+    do {
+        n = rc522_read_reg(CommIrqReg);
+        i--;
+    } while ((i != 0) && !(n & 0x30));
+
+    uint8_t error = rc522_read_reg(ErrorReg);
+    if (error & 0x1B) return Status_ERROR;
+
+    uint8_t fifo_level = rc522_read_reg(FIFOLevelReg);
+    for (uint8_t i = 0; i < fifo_level; i++) {
+        recv_data[i] = rc522_read_reg(FIFODataReg);
+    }
+
+    return Status_OK;
+}
+
