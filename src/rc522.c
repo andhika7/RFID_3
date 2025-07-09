@@ -131,3 +131,40 @@ bool rc522_request(uint8_t *atqa) {
     }
     return false;
 }
+
+bool rc522_anticoll(uint8_t *uid) {
+    // Clear all IRQs
+    rc522_write_reg(CommIrqReg, 0x7F);
+
+    // Flush FIFO
+    rc522_write_reg(FIFOLevelReg, 0x80);
+
+    // Send anticollision command
+    rc522_write_reg(BitFramingReg, 0x00); // send full bytes
+
+    rc522_write_reg(FIFODataReg, 0x93); // anticollision command
+    rc522_write_reg(FIFODataReg, 0x20); // NVB
+
+    rc522_write_reg(CommandReg, PCD_TRANSCEIVE);
+    rc522_write_reg(BitFramingReg, 0x80); // StartSend
+
+    int i = 0;
+    uint8_t irq;
+    do {
+        irq = rc522_read_reg(CommIrqReg);
+        i++;
+    } while (!(irq & 0x30) && i < 200);
+
+    uint8_t error = rc522_read_reg(ErrorReg);
+    uint8_t fifo_level = rc522_read_reg(FIFOLevelReg);
+
+    printf("Anticoll -> IRQ: 0x%02X, ERR: 0x%02X, FIFO: %d\n", irq, error, fifo_level);
+
+    if ((irq & 0x30) && !(error & 0x1B) && fifo_level >= 5) {
+        for (int i = 0; i < 5; i++) {
+            uid[i] = rc522_read_reg(FIFODataReg);
+        }
+        return true;
+    }
+    return false;
+}
