@@ -37,11 +37,10 @@ void app_main(void) {
 
                 if (rc522_select(uid) == Status_OK){
                     printf("Select UID berhasil.\n");
-                }else
-                {
+                } else {
                     printf("Select UID gagal.\n");
                 }
-                                
+
             } else {
                 printf("gagal membaca UID\n");
             }
