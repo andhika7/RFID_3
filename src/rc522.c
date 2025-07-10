@@ -258,3 +258,32 @@ esp_err_t rc522_read_block(uint8_t block_addr, uint8_t *recv_data) {
     return Status_OK;
 }
 
+esp_err_t rc522_select(uint8_t *uid) {
+    uint8_t buffer[9];
+    buffer[0] = PICC_SElECTTAG;
+    buffer[1] = 0x70; // NVB = 0x70 = 7 UID bytes
+    for (int i = 0; i < 5; i++) buffer[2 + i] = uid[i];
+    rc522_calculate_crc(buffer, 7, &buffer[7]);
+
+    rc522_write_reg(BitFramingReg, 0x00);
+
+    for (uint8_t i = 0; i < 9; i++) {
+        rc522_write_reg(FIFODataReg, buffer[i]);
+    }
+
+    rc522_write_reg(CommandReg, PCD_TRANSCEIVE);
+    rc522_write_reg(BitFramingReg, 0x87);
+
+    uint8_t i = 200;
+    uint8_t n;
+    do {
+        n = rc522_read_reg(CommIrqReg);
+        i--;
+    } while ((i != 0) && !(n & 0x30));
+
+    uint8_t error = rc522_read_reg(ErrorReg);
+    if (error & 0x1B) return Status_ERROR;
+
+    return Status_OK;
+}
+

@@ -64,3 +64,6 @@ bool rc522_anticoll(uint8_t *uid);
 // otentikasi
 esp_err_t rc522_auth(uint8_t auth_mode, uint8_t block_addr, uint8_t *key, uint8_t *uid);
 esp_err_t rc522_read_block(uint8_t block_addr, uint8_t *block_data);
+
+// select
+esp_err_t rc522_select(uint8_t *uid);
