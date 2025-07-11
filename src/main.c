@@ -34,10 +34,10 @@ void app_main(void) {
                     printf("%02x ", uid[i]);
                 }
                 printf("\n");
-                // uint8_t block_data[16];
+                uint8_t block_data[16];
 
                 if (rc522_select(uid) == Status_OK){
-                    printf("Select UID berhasil.\n");
+                    // printf("Select UID berhasil.\n"); // line for debug
                     vTaskDelay(pdMS_TO_TICKS(100)); // Tambah delay setelah select
                     uint8_t found_key[6];
                     
@@ -48,8 +48,37 @@ void app_main(void) {
                             printf("%02X ", found_key[i]);
                         }
                         printf("\n");
+                    } else {
+                        printf("Tidak menemukan key yang cocok saat brute force.\n");
+                        vTaskDelay(pdMS_TO_TICKS(1000));
+                        continue; // skip ke loop berikutnya
                     }
-                    
+                    vTaskDelay(pdMS_TO_TICKS(100)); // stabilisasi
+
+                    // printf("Re-select UID sebelum auth ulang...\n");
+                    if (rc522_select(uid) != Status_OK) {
+                        printf("Re-select UID gagal sebelum auth ulang.\n");
+                        continue;
+                    }
+
+                    uint8_t block_to_auth = 4;
+                    esp_err_t auth_result = rc522_auth(PICC_AUTHENT1A, block_to_auth, found_key, uid);
+                    // printf("rc522_auth returned: %d\n", auth_result);
+
+                    if (auth_result == Status_OK){
+                        if (rc522_read_block(block_to_auth, block_data) == Status_OK){
+                            printf("Data pada block %d: ", block_to_auth);
+                            for (int i = 0; i < 16; i++){
+                                printf("%02X ", block_data[i]);
+                            }
+                            printf("\n");
+                        } else {
+                            printf("gagal baca block data");
+                        }
+                    } else {
+                        printf("otentikasi gagal");
+                    }
+
                 } else {
                     printf("Select UID gagal.\n");
                 }
@@ -57,6 +86,7 @@ void app_main(void) {
             } else {
                 printf("gagal membaca UID\n");
             }
+
         } else {
             printf("Tidak ada kartu.\n");
         }        

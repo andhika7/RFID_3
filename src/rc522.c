@@ -123,7 +123,7 @@ bool rc522_request(uint8_t *atqa) {
     uint8_t error = rc522_read_reg(ErrorReg);
     uint8_t fifo_level = rc522_read_reg(FIFOLevelReg);
 
-    printf("REQA -> IRQ: 0x%02X, ERR: 0x%02X, FIFO: %d\n", irq, error, fifo_level);
+    // printf("REQA -> IRQ: 0x%02X, ERR: 0x%02X, FIFO: %d\n", irq, error, fifo_level); // line untuk debug
 
     if ((irq & 0x30) && !(error & 0x1B) && fifo_level >= 2) {
         atqa[0] = rc522_read_reg(FIFODataReg);
@@ -159,7 +159,7 @@ bool rc522_anticoll(uint8_t *uid) {
     uint8_t error = rc522_read_reg(ErrorReg);
     uint8_t fifo_level = rc522_read_reg(FIFOLevelReg);
 
-    printf("Anticoll -> IRQ: 0x%02X, ERR: 0x%02X, FIFO: %d\n", irq, error, fifo_level);
+    // printf("Anticoll -> IRQ: 0x%02X, ERR: 0x%02X, FIFO: %d\n", irq, error, fifo_level); // line untuk debug
 
     if ((irq & 0x30) && !(error & 0x1B) && fifo_level >= 5) {
         for (int i = 0; i < 5; i++) {
@@ -303,7 +303,7 @@ esp_err_t rc522_select(uint8_t *uid) {
 
 // brute force
 bool brute_force_key_finder(uint8_t *uid, uint8_t *found_key) {
-    printf("Mulai brute force key...\n");
+    // printf("Mulai brute force key...\n"); // line for debug
 
     // Daftar key umum untuk Mifare Classic 1K
     uint8_t known_keys[][6] = {
@@ -320,17 +320,17 @@ bool brute_force_key_finder(uint8_t *uid, uint8_t *found_key) {
     uint8_t block_to_auth = 4; // Gunakan block data pertama
 
     for (int i = 0; i < sizeof(known_keys)/6; i++) {
-        
+        /*
         printf("Mencoba key bro: "); //debug
         for (int k = 0; k < 6; k++) {
             printf("%02X ", known_keys[i][k]); // menampilkan keys
-        }
-        
+        }        
         printf("\n");
+        */
 
         esp_err_t auth_result = rc522_auth(PICC_AUTHENT1A, block_to_auth, known_keys[i], uid);
         if (auth_result == Status_OK) {
-            printf("Key ditemukan!\n");
+            // printf("Key ditemukan!\n");
             memcpy(found_key, known_keys[i], 6);
             return true;
         }
