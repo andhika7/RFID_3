@@ -3,6 +3,7 @@
 #include "freertos/task.h"
 #include "stdio.h"
 #include "string.h"
+#include "esp_spiffs.h"
 
 static spi_device_handle_t spi;
 
@@ -338,3 +339,49 @@ bool brute_force_key_finder(uint8_t *uid, uint8_t *found_key) {
     printf("Brute force key gagal, tidak menemukan key.\n");
     return false;
 }
+
+// dump file
+void rc522_dump_to_file(uint8_t *uid, uint8_t *key){
+    FILE *f = fopen("/spiffs/dump.bin", "wb");
+    if (f == NULL) {
+        printf("Gagal membuka file dump untuk ditulis.\n");
+        return;
+    }
+
+    uint8_t block_data[16];
+    uint8_t block_to_auth;
+    esp_err_t auth_result;
+
+    for (int sector = 0; sector < 16; sector++){
+         printf("\nSector %d:\n", sector);
+         for (int block = 0; block < 4; block++){
+            block_to_auth = sector * 4 + block;
+
+             // Auth sebelum baca
+            auth_result = rc522_auth(PICC_AUTHENT1A, block_to_auth, key, uid);
+            printf("Auth blk %d: %s\n", block_to_auth, (auth_result == Status_OK) ? "OK" : "FAIL");
+
+            if (auth_result == Status_OK){
+                if (rc522_read_block(block_to_auth, block_data) == Status_OK){
+                    printf("Data blk %d: ", block_to_auth);
+                    for (int i = 0; i < 16; i++) {
+                        printf("%02X ", block_data[i]);
+                    }
+                    printf("\n");
+                    fwrite(block_data, 1, 16, f);
+                } else {
+                    printf("Gagal membaca blk %d, tulis FF.\n", block_to_auth);
+                    memset(block_data, 0xFF, 16);
+                    fwrite(block_data, 1, 16, f);
+                }
+            } else {
+                printf("Auth gagal blk %d, tulis FF.\n", block_to_auth);
+                memset(block_data, 0xFF, 16);
+                fwrite(block_data, 1, 16, f);
+            }
+            vTaskDelay(pdMS_TO_TICKS(50)); // stabil
+         }
+    }
+    fclose(f);
+    printf("\nDump selesai, simpan di /spiffs/dump.bin\n");
+} 

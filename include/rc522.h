@@ -70,3 +70,5 @@ esp_err_t rc522_read_block(uint8_t block_addr, uint8_t *block_data);
 esp_err_t rc522_select(uint8_t *uid);
 // brute force finder
 bool brute_force_key_finder(uint8_t *uid, uint8_t *found_key);
+// dump file
+void rc522_dump_to_file(uint8_t *uid, uint8_t *key);

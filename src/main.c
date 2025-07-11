@@ -2,6 +2,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "rc522.h"
+#include "esp_spiffs.h"
+#include "send_serial.h"
+
 
 void app_main(void) {
     // printf("Memulai inisialisasi RC522...\n");
@@ -16,7 +19,6 @@ void app_main(void) {
         uint8_t tx_ctrl = rc522_read_reg(TxControlReg);
         printf("TxControlReg: 0x%02X\n", tx_ctrl);
         
-
     } else {
         printf("RC522 Init Gagal\n");
         // while (1) vTaskDelay(pdMS_TO_TICKS(1000));
@@ -24,6 +26,21 @@ void app_main(void) {
 
     uint8_t atqa[2]; //ATQA
     uint8_t uid[5];
+
+    // spiffs
+    esp_vfs_spiffs_conf_t conf = {
+        .base_path = "/spiffs",
+        .partition_label = NULL,
+        .max_files = 5,
+        .format_if_mount_failed = true
+    };
+    esp_err_t ret = esp_vfs_spiffs_register(&conf);
+
+    if (ret != ESP_OK){
+        printf("Gagal mount SPIFFS\n");
+    } else {
+        printf("SPIFFS berhasil di-mount...\n");
+    }
 
     while (1) {
         if (rc522_request(atqa)) {
@@ -48,6 +65,16 @@ void app_main(void) {
                             printf("%02X ", found_key[i]);
                         }
                         printf("\n");
+                        // memanggil fungsi dump file
+                        rc522_dump_to_file(uid, found_key);
+                        printf("Dump selesai, cek dengan `idf.py monitor` atau download dari SPIFFS.\n");
+                        // kirim data via serial
+                        send_file_over_serial("/spiffs/dump.bin");
+                        
+                        while(1) {
+                            vTaskDelay(pdMS_TO_TICKS(1000));
+                        }
+
                     } else {
                         printf("Tidak menemukan key yang cocok saat brute force.\n");
                         vTaskDelay(pdMS_TO_TICKS(1000));
