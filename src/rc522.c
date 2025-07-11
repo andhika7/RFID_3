@@ -2,6 +2,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "stdio.h"
+#include "string.h"
 
 static spi_device_handle_t spi;
 
@@ -219,10 +220,23 @@ esp_err_t rc522_auth(uint8_t auth_mode, uint8_t block_addr, uint8_t *key, uint8_
         i--;
     } while ((i != 0) && !(n & 0x08)); // MFCrypto1On
 
+    uint8_t error = rc522_read_reg(ErrorReg);
+    
+    /*
     n = rc522_read_reg(Status2Reg);
     if (n & 0x08) return Status_OK;
 
-    return Status_ERROR;
+    return Status_ERROR;*/
+
+    // Cek keberhasilan autentikasi
+    if ((error & 0x1B) == 0) {
+        printf("Auth OK\n");
+        return Status_OK;
+    } else {
+        printf("Auth Gagal\n");
+        return Status_ERROR;
+    }
+
 }
 
 esp_err_t rc522_read_block(uint8_t block_addr, uint8_t *recv_data) {
@@ -287,3 +301,40 @@ esp_err_t rc522_select(uint8_t *uid) {
     return Status_OK;
 }
 
+// brute force
+bool brute_force_key_finder(uint8_t *uid, uint8_t *found_key) {
+    printf("Mulai brute force key...\n");
+
+    // Daftar key umum untuk Mifare Classic 1K
+    uint8_t known_keys[][6] = {
+        {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, // default key
+        {0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5}, // contoh key factory
+        {0xD3, 0xF7, 0xD3, 0xF7, 0xD3, 0xF7}, // transport key
+        {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // kosong
+        {0x4D, 0x3A, 0x99, 0xC3, 0x51, 0xDD}, // sample
+        {0x1A, 0x98, 0x2C, 0x7E, 0x45, 0x9A}, // sample
+        {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}, // sample
+        {0x00, 0x00, 0x00, 0x00, 0x00, 0x01}, // sample
+    };
+
+    uint8_t block_to_auth = 4; // Gunakan block data pertama
+
+    for (int i = 0; i < sizeof(known_keys)/6; i++) {
+        
+        printf("Mencoba key bro: "); //debug
+        for (int k = 0; k < 6; k++) {
+            printf("%02X ", known_keys[i][k]); // menampilkan keys
+        }
+        
+        printf("\n");
+
+        esp_err_t auth_result = rc522_auth(PICC_AUTHENT1A, block_to_auth, known_keys[i], uid);
+        if (auth_result == Status_OK) {
+            printf("Key ditemukan!\n");
+            memcpy(found_key, known_keys[i], 6);
+            return true;
+        }
+    }
+    printf("Brute force key gagal, tidak menemukan key.\n");
+    return false;
+}

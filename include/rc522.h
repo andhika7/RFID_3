@@ -29,6 +29,7 @@
 #define PICC_AUTHENT1A 0x60
 #define PICC_AUTHENT1B 0x61
 #define PICC_READ      0x30
+#define CollReg        0x0E
 
 #define Status_OK         0
 #define Status_ERROR      1
@@ -67,3 +68,5 @@ esp_err_t rc522_read_block(uint8_t block_addr, uint8_t *block_data);
 
 // select
 esp_err_t rc522_select(uint8_t *uid);
+// brute force finder
+bool brute_force_key_finder(uint8_t *uid, uint8_t *found_key);

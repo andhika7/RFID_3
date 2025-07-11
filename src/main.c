@@ -34,9 +34,22 @@ void app_main(void) {
                     printf("%02x ", uid[i]);
                 }
                 printf("\n");
+                // uint8_t block_data[16];
 
                 if (rc522_select(uid) == Status_OK){
                     printf("Select UID berhasil.\n");
+                    vTaskDelay(pdMS_TO_TICKS(100)); // Tambah delay setelah select
+                    uint8_t found_key[6];
+                    
+                    if (brute_force_key_finder(uid, found_key)){
+                        // Tampilkan key hasil brute
+                        printf("Key ditemukan hasil brute force: ");
+                        for (int i = 0; i < 6; i++){
+                            printf("%02X ", found_key[i]);
+                        }
+                        printf("\n");
+                    }
+                    
                 } else {
                     printf("Select UID gagal.\n");
                 }
